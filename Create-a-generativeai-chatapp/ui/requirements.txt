@@ -1,0 +1,5 @@
+python-dotenv
+azure-identity
+openai
+fastapi
+uvicorn[standard]

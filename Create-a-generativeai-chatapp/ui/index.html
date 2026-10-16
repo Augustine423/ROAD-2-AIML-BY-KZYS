@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Azure Generative AI</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{
+  font-family:'Segoe UI',system-ui,-apple-system,sans-serif;
+  background:#0d0d17;
+  color:#ddd;
+  height:100vh;
+  display:flex;
+  flex-direction:column;
+}
+/* === HEADER === */
+header{
+  padding:14px 24px;
+  background:#111118;
+  border-bottom:1px solid#1e1e30;
+  display:flex;
+  align-items:center;
+  gap:12px;
+  flex-shrink:0;
+}
+header .logo{
+  width:32px;height:32px;
+  background:linear-gradient(135deg,#818cf8,#a78bfa);
+  border-radius:8px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:16px;color:#fff;
+}
+header h1{font-size:15px;font-weight:600}
+header .model{font-size:11px;color:#818cf8;margin-left:4px;display:flex;align-items:center;gap:4px}
+header .model .dot{width:6px;height:6px;border-radius:50%}
+.dot.online{background:#4ade80;box-shadow:0 0 6px #4ade80}
+.dot.offline{background:#f87171;box-shadow:0 0 6px #f87171}
+.dot.checking{background:#fbbf24;animation:pulse .8s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+
+/* === MESSAGES === */
+#messages{
+  flex:1;overflow-y:auto;
+  padding:24px 20px;
+  display:flex;flex-direction:column;
+  gap:18px;
+  max-width:760px;width:100%;margin:0 auto;
+}
+.welcome{
+  text-align:center;padding:60px 20px;
+}
+.welcome h2{font-size:24px;font-weight:700;margin-bottom:6px}
+.welcome h2 span{background:linear-gradient(135deg,#818cf8,#c084fc);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.welcome p{color:#666;font-size:14px}
+.message{display:flex;gap:10px;animation:fadeIn .3s ease}
+.message.user{flex-direction:row-reverse}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+.avatar{
+  width:32px;height:32px;border-radius:8px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:13px;flex-shrink:0;
+}
+.avatar.ai{background:linear-gradient(135deg,#818cf8,#a78bfa);color:#fff}
+.avatar.user{background:#2a2a3e;color:#888}
+.bubble{
+  padding:12px 16px;border-radius:14px;
+  font-size:14px;line-height:1.6;
+  max-width:100%;word-break:break-word;
+}
+.bubble.ai{background:#161622;border:1px solid#222236}
+.bubble.user{background:linear-gradient(135deg,#6366f1,#7c3aed);color:#fff}
+.bubble.error{background:#2d1111;border:1px solid#5c1e1e;color:#f87171}
+.bubble pre{background:#0a0a14;border-radius:8px;padding:12px;margin:8px 0;overflow-x:auto;font-size:13px}
+.bubble code{font-family:'JetBrains Mono',monospace;font-size:13px;background:#00000030;padding:2px 5px;border-radius:3px}
+.bubble pre code{background:none;padding:0}
+.time{font-size:10px;color:#444;margin-top:2px}
+.msg-row{display:flex;flex-direction:column}
+.msg-row.user-row{align-items:flex-end}
+.msg-row.ai-row{align-items:flex-start}
+
+/* === TYPING === */
+#typing{display:none;padding:0 0 0 42px}
+#typing .dots{display:flex;gap:5px}
+#typing .dots span{width:6px;height:6px;border-radius:50%;background:#818cf8;animation:bounce 1.2s infinite ease-in-out}
+#typing .dots span:nth-child(2){animation-delay:.15s}
+#typing .dots span:nth-child(3){animation-delay:.3s}
+@keyframes bounce{0%,60%,100%{transform:translateY(0);opacity:.3}30%{transform:translateY(-5px);opacity:1}}
+
+/* === FOOTER === */
+footer{
+  padding:14px 24px 20px;
+  flex-shrink:0;
+  display:flex;justify-content:center;
+}
+form{
+  display:flex;align-items:center;gap:8px;
+  background:#14141f;
+  border:1px solid#222236;
+  border-radius:16px;
+  padding:4px 4px 4px 16px;
+  max-width:760px;width:100%;
+  transition:border-color .2s;
+}
+form:focus-within{border-color:#818cf8;box-shadow:0 0 20px #818cf810}
+input{
+  flex:1;background:transparent;border:none;outline:none;
+  color:#ddd;font-size:14px;padding:8px 0;
+}
+input::placeholder{color:#444}
+button{
+  border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;
+  transition:all .15s;flex-shrink:0;
+}
+.btn-send{
+  width:36px;height:36px;border-radius:10px;
+  background:linear-gradient(135deg,#818cf8,#a78bfa);
+  color:#fff;font-size:16px;
+}
+.btn-send:hover{transform:scale(1.06);box-shadow:0 0 18px #818cf830}
+.btn-send:disabled{opacity:.3;transform:none;box-shadow:none}
+.btn-mic{
+  width:32px;height:32px;border-radius:8px;
+  background:transparent;
+}
+.btn-mic svg{stroke:#666;transition:stroke .2s}
+.btn-mic:hover svg{stroke:#fff}
+.btn-mic.listening{background:#ef444412}
+.btn-mic.listening svg{stroke:#ef4444}
+
+::-webkit-scrollbar{width:5px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:#222;border-radius:3px}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">✦</div>
+  <h1>Azure Generative AI</h1>
+  <div class="model"><span class="dot online" id="statusDot"></span><span id="modelName">...</span></div>
+</header>
+
+<div id="messages">
+  <div class="welcome" id="welcome">
+    <h2>Hello, <span>Developer</span> 👋</h2>
+    <p>Ask me anything — I'm here to help.</p>
+  </div>
+</div>
+
+<div id="typing">
+  <div class="dots"><span></span><span></span><span></span></div>
+</div>
+
+<footer>
+  <form onsubmit="send(event)">
+    <input id="input" type="text" placeholder="Type a message..." autofocus autocomplete="off">
+    <button type="button" class="btn-mic" id="micBtn" onclick="toggleMic()" title="Voice">
+      <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 2a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/>
+        <path d="M19 10v1a7 7 0 0 1-14 0v-1"/>
+        <line x1="12" y1="19" x2="12" y2="22"/><line x1="8" y1="22" x2="16" y2="22"/>
+      </svg>
+    </button>
+    <button type="submit" class="btn-send" id="sendBtn">▲</button>
+  </form>
+</footer>
+
+<script>
+const msgs=document.getElementById('messages');
+const input=document.getElementById('input');
+const sendBtn=document.getElementById('sendBtn');
+const typing=document.getElementById('typing');
+const welcome=document.getElementById('welcome');
+const statusDot=document.getElementById('statusDot');
+const modelName=document.getElementById('modelName');
+const micBtn=document.getElementById('micBtn');
+let listening=false,rec=null;
+
+async function loadConfig(){
+  try{const r=await fetch('/api/config',{signal:AbortSignal.timeout(3000)});if(r.ok)modelName.textContent=(await r.json()).model}catch(e){}
+}
+loadConfig();
+
+async function checkHealth(){
+  statusDot.className='dot checking';
+  try{const r=await fetch('/api/health',{signal:AbortSignal.timeout(3000)});statusDot.className=r.ok?'dot online':'dot offline'}catch(e){statusDot.className='dot offline'}
+}
+checkHealth();setInterval(checkHealth,15000);
+
+function addMsg(role,text,isErr){
+  if(welcome)welcome.remove();
+  const t=new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+  const avatar=role==='user'?'U':'AI';
+  const bCls=isErr?'error':role;
+  const rowCls=role==='user'?'user-row':'ai-row';
+  const html=`<div class="message ${role}"><div class="avatar ${role}">${avatar}</div><div class="msg-row ${rowCls}"><div class="bubble ${bCls}">${fmt(esc(text))}</div><div class="time">${t}</div></div></div>`;
+  msgs.insertAdjacentHTML('beforeend',html);
+  msgs.scrollTop=msgs.scrollHeight;
+}
+function fmt(t){return t.replace(/```(\w*)\n?([\s\S]*?)```/g,(_,lang,code)=>`<pre><code>${esc(code.trim())}</code></pre>`).replace(/`([^`]+)`/g,'<code>$1</code>')}
+function esc(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+
+async function send(e){
+  e.preventDefault();
+  const text=input.value.trim();
+  if(!text)return;
+  addMsg('user',text);
+  input.value='';
+  sendBtn.disabled=true;
+  typing.style.display='block';
+  msgs.scrollTop=msgs.scrollHeight;
+  try{
+    const r=await fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:text})});
+    if(!r.ok){const e=await r.json().catch(()=>({}));throw new Error(e.detail||`Error ${r.status}`)}
+    addMsg('assistant',(await r.json()).reply);
+  }catch(e){addMsg('assistant',e.message,true)}
+  finally{typing.style.display='none';sendBtn.disabled=false;msgs.scrollTop=msgs.scrollHeight}
+}
+
+function toggleMic(){
+  if(!('webkitSpeechRecognition' in window||'SpeechRecognition' in window)){alert('Voice needs Chrome/Edge.');return}
+  listening?stopMic():startMic();
+}
+function startMic(){
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  rec=new SR();rec.lang='en-US';rec.interimResults=false;
+  rec.onresult=e=>{input.value=e.results[0][0].transcript;input.focus();stopMic()};
+  rec.onerror=()=>stopMic();rec.onend=()=>stopMic();
+  rec.start();listening=true;micBtn.classList.add('listening');
+}
+function stopMic(){if(rec){rec.stop();rec=null}listening=false;micBtn.classList.remove('listening')}
+</script>
+</body>
+</html>

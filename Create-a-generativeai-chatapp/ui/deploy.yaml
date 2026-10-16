@@ -1,0 +1,55 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: azure-ai-secret
+  namespace: default
+type: Opaque
+stringData:
+  AZURE_OPENAI_ENDPOINT: "https://chatbot-lab381987-resource.services.ai.azure.com/models"
+  MODEL_DEPLOYMENT: "gpt-5.2"
+  AZURE_OPENAI_API_KEY: "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: azure-ai-chat
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: azure-ai-chat
+  template:
+    metadata:
+      labels:
+        app: azure-ai-chat
+    spec:
+      containers:
+        - name: chat-app
+          image: azure-ai-chat:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8000
+          envFrom:
+            - secretRef:
+                name: azure-ai-secret
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "100m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: azure-ai-chat
+  namespace: default
+spec:
+  selector:
+    app: azure-ai-chat
+  ports:
+    - port: 80
+      targetPort: 8000
+  type: LoadBalancer
